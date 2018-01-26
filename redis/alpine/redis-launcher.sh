@@ -81,7 +81,7 @@ function launchsentinel() {
     sleep 10
   done
 
-  echo "sentinel monitor mymaster ${MASTER_IP} ${MASTER_LB_PORT} ${QUORUM}" > ${SENTINEL_CONF}
+  echo "sentinel monitor mymaster ${MASTER_LB_HOST} ${MASTER_LB_PORT} ${QUORUM}" > ${SENTINEL_CONF}
   echo "sentinel down-after-milliseconds mymaster 15000" >> ${SENTINEL_CONF}
   echo "sentinel failover-timeout mymaster 30000" >> ${SENTINEL_CONF}
   echo "sentinel parallel-syncs mymaster 10" >> ${SENTINEL_CONF}
