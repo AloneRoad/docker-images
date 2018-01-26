@@ -55,6 +55,9 @@ function launchmaster() {
     echo "Redis master data doesn't exist, data won't be persistent!"
     mkdir /redis-master-data
   fi
+  MASTER_IP=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=master|grep running|grep $REDIS_CHART_PREFIX|awk '{print $2}'|xargs)
+  SENTINEL_IPS=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=sentinel|grep running|awk '{print $2}')
+  echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${MASTER_IP} ${MASTER_LB_PORT} ${QUORUM}"
   redis-server $MASTER_CONF --protected-mode no $@
 }
 
