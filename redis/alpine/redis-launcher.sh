@@ -140,15 +140,10 @@ fi
 echo "Looking for pods running as master"
 MASTERS=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=master|grep running|grep $REDIS_CHART_PREFIX`
 if [[ "$MASTERS" == "" ]]; then
-  echo "No masters found: \"$MASTERS\" Electing first master..."
-  SLAVE1=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.creationTimestamp} {.metadata.name} {.status.containerStatuses[0].state} {"\n"} {end}' -l redis-node=true |grep running|sort|awk '{print $2}'|grep $REDIS_CHART_PREFIX|head -n1`
-  if [[ "$SLAVE1" == "$HOSTNAME" ]] || [[ "$SLAVE1" == "" ]]; then
-    echo "Taking master role"
-    launchmaster
-  else
-    echo "Electing $SLAVE1 master"
-    launchslave
-  fi
+  # even if there are other slaves, if there is no master by now, there is some problem with master election
+  # in that case just take master role, NOTE: this will only work correctly with StatefulSets
+  echo "No masters found: \"$MASTERS\" Taking master role..."
+  launchmaster
   exit 0
 else
   echo "Found $MASTERS"
