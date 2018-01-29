@@ -157,6 +157,8 @@ else
     echo "promote slave to master"
     redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
     kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
+    SENTINEL_IPS=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=sentinel|grep running|awk '{print $2}')
+    echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
   fi
   launchslave
   exit 0
