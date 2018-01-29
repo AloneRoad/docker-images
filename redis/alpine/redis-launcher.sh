@@ -142,17 +142,24 @@ fi
 # Determine whether this should be a master or slave instance
 echo "Looking for pods running as master"
 MASTERS=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=master|grep running|grep $REDIS_CHART_PREFIX`
-if [[ "$MASTERS" == "" ]]; then
-  # even if there are other slaves, if there is no master by now, there is some problem with master election
-  # in that case just take master role, NOTE: this will only work correctly with StatefulSets
-  echo "No masters found: \"$MASTERS\" Taking master role..."
+SLAVE1_IP=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state} {"\n"} {end}' -l redis-role=slave |grep running|grep $REDIS_CHART_PREFIX|grep -v $HOSTNAME|sort|awk '{print $2}'|head -n1`
+SLAVE1_NAME=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state} {"\n"} {end}' -l redis-role=slave |grep running|grep $REDIS_CHART_PREFIX|grep -v $HOSTNAME|sort|awk '{print $1}'|head -n1`
+if [[ "$MASTERS" == "" ]] && [[ "$SLAVE1" == "" ]]; then
+  echo "No masters or slaves found: \"$MASTERS\" Taking master role..."
   launchmaster
   exit 0
 else
-  echo "Found $MASTERS"
-  echo "Launching Redis in Slave mode"
+  if [[ "$MASTERS" != "" ]]; then
+    echo "Found master $MASTERS"
+    echo "Launching Redis in Slave mode"
+  else
+    echo "No master found, slaves available"
+    echo "promote slave to master"
+    redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF
+    kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
+    exit 0
+  fi
   launchslave
-  exit 0
 fi
 
 echo "Launching Redis in Slave mode"
