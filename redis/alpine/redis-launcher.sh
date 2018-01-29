@@ -155,7 +155,7 @@ else
   else
     echo "No master found, slaves available"
     echo "promote slave to master"
-    redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF
+    redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
     kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
     exit 0
   fi
