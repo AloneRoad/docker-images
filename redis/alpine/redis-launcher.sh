@@ -144,7 +144,7 @@ echo "Looking for pods running as master"
 MASTERS=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=master|grep running|grep $REDIS_CHART_PREFIX`
 SLAVE1_IP=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state} {"\n"} {end}' -l redis-role=slave |grep running|grep $REDIS_CHART_PREFIX|grep -v $HOSTNAME|sort|awk '{print $2}'|head -n1`
 SLAVE1_NAME=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state} {"\n"} {end}' -l redis-role=slave |grep running|grep $REDIS_CHART_PREFIX|grep -v $HOSTNAME|sort|awk '{print $1}'|head -n1`
-if [[ "$MASTERS" == "" ]] && [[ "$SLAVE1" == "" ]]; then
+if [[ "$MASTERS" == "" ]] && [[ "$SLAVE1_IP" == "" ]]; then
   echo "No masters or slaves found: \"$MASTERS\" Taking master role..."
   launchmaster
   exit 0
