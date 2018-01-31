@@ -160,7 +160,7 @@ else
       redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
       kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
       echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
-    end
+    fi
   fi
   launchslave
   exit 0
