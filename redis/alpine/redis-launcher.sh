@@ -154,7 +154,8 @@ else
     echo "Launching Redis in Slave mode"
   else
     SENTINEL_IPS=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=sentinel|grep running|awk '{print $2}')
-    if [[ "${#SENTINEL_IPS[@]}" -lt $((QUORUM+1)) ]]; then
+    SENTINEL_LIST=( $SENTINEL_IPS )
+    if [[ "${#SENTINEL_LIST[@]}" -lt $((QUORUM+1)) ]]; then
       echo "No master found, not enough sentinels, slaves available"
       echo "promote slave to master"
       redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
