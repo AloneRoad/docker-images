@@ -85,8 +85,8 @@ function launchsentinel() {
   done
 
   echo "sentinel monitor mymaster ${MASTER_LB_HOST} ${MASTER_LB_PORT} ${QUORUM}" > ${SENTINEL_CONF}
-  echo "sentinel down-after-milliseconds mymaster 15000" >> ${SENTINEL_CONF}
-  echo "sentinel failover-timeout mymaster 30000" >> ${SENTINEL_CONF}
+  echo "sentinel down-after-milliseconds mymaster 10000" >> ${SENTINEL_CONF}
+  echo "sentinel failover-timeout mymaster 5000" >> ${SENTINEL_CONF}
   echo "sentinel parallel-syncs mymaster 10" >> ${SENTINEL_CONF}
   echo "bind 0.0.0.0" >> ${SENTINEL_CONF}
   echo "sentinel client-reconfig-script mymaster /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
@@ -149,19 +149,29 @@ if [[ "$MASTERS" == "" ]] && [[ "$SLAVE1_IP" == "" ]]; then
   launchmaster
   exit 0
 else
-  if [[ "$MASTERS" != "" ]]; then
-    echo "Found master $MASTERS"
-    echo "Launching Redis in Slave mode"
-  else
-    echo "No master found, slaves available"
-    echo "promote slave to master"
-    redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
-    kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
-    SENTINEL_IPS=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=sentinel|grep running|awk '{print $2}')
-    echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
-  fi
-  launchslave
-  exit 0
+  i=0
+
+  while true; do
+    MASTERS=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=master|grep running|grep $REDIS_CHART_PREFIX`
+    if [[ "$MASTERS" != "" ]]; then
+      echo "Found master $MASTERS"
+      echo "Launching Redis in Slave mode"
+      break
+    else
+      i=$((i+1))
+      if [[ "$i" -gt "20" ]]; then
+        echo "No master found after 25s, slaves available"
+        echo "promote slave to master"
+        redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
+        kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
+        SENTINEL_IPS=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=sentinel|grep running|awk '{print $2}')
+        echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
+        launchslave
+        exit 0
+      fi
+      sleep 1
+    fi
+   done
 fi
 
 echo "Launching Redis in Slave mode"
