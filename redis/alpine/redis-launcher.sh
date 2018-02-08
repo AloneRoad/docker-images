@@ -46,6 +46,22 @@ MASTER_LB_PORT="${!PORTVAR}"
 MASTER_LB_HOST="${!HOSTVAR}"
 QUORUM=${QUORUM:-2}
 
+# Update redis config file with data from environment variables
+# config key is all upper case, dashes are replaced with underscores
+# 
+# For example:
+#
+#   export REDIS_LOGLEVEL=warning
+#   export REDIS_SLAVE_READ_ONLY=no
+#
+function updateconf() {
+  for i in $(env | grep '^REDIS_'); do
+    IFS='=' read -r key value <<< "$i"
+    key=$(echo $key | sed -e 's/^REDIS_//g' | sed -e 's/_/-/g' | tr '[:upper:]' '[:lower:]')
+    sed -i -e "s/.*$key .*/$key $value/g" $1
+  done
+}
+
 # Launch master when `MASTER` environment variable is set
 function launchmaster() {
   # If we know we're a master, update the labels right away
@@ -55,9 +71,12 @@ function launchmaster() {
     echo "Redis master data doesn't exist, data won't be persistent!"
     mkdir /redis-master-data
   fi
+
   MASTER_IP=$(hostname -i)
   SENTINEL_IPS=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=sentinel|grep running|awk '{print $2}')
   echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${MASTER_IP} ${MASTER_LB_PORT} ${QUORUM}"
+
+  updateconf $MASTER_CONF
   redis-server $MASTER_CONF --protected-mode no $@
 }
 
@@ -121,6 +140,8 @@ function launchslave() {
   done
   sed -i "s/%master-ip%/${MASTER_LB_HOST}/" $SLAVE_CONF
   sed -i "s/%master-port%/${MASTER_LB_PORT}/" $SLAVE_CONF
+  
+  updateconf $MASTER_CONF
   redis-server $SLAVE_CONF --protected-mode no $@
 }
 
