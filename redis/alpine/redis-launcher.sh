@@ -45,6 +45,7 @@ HOSTVAR="${ENV_VAR_PREFIX}MASTER_SVC_SERVICE_HOST"
 MASTER_LB_PORT="${!PORTVAR}"
 MASTER_LB_HOST="${!HOSTVAR}"
 QUORUM=${QUORUM:-2}
+MASTER_NAME=${SENTINEL_MASTER_NAME:-mymaster}
 
 # Update redis config file with data from environment variables
 # config key is all upper case, dashes are replaced with underscores
