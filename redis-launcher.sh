@@ -46,6 +46,7 @@ MASTER_LB_PORT="${!PORTVAR}"
 MASTER_LB_HOST="${!HOSTVAR}"
 QUORUM=${QUORUM:-2}
 MASTER_NAME=${SENTINEL_MASTER_NAME:-mymaster}
+AUTH_PASS=${SENTINEL_AUTH_PASS}
 
 # Launch master when `MASTER` environment variable is set
 function launchmaster() {
@@ -89,6 +90,9 @@ function launchsentinel() {
   echo "sentinel parallel-syncs ${MASTER_NAME} 10" >> ${SENTINEL_CONF}
   echo "bind 0.0.0.0" >> ${SENTINEL_CONF}
   echo "sentinel client-reconfig-script ${MASTER_NAME} /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
+  if [ -z "$AUTH_PASS" ]; then
+    echo "sentinel auth-pass ${MASTER_NAME} ${AUTH_PASS}" >> ${SENTINEL_CONF}
+  fi
 
   kubectl label --overwrite pod $HOSTNAME redis-role="sentinel"
 
