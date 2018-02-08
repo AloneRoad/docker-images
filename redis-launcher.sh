@@ -125,17 +125,17 @@ function launchslave() {
   redis-server $SLAVE_CONF --protected-mode no $@
 }
 
-#Check if MASTER environment variable is set
+# Check if MASTER environment variable is set
 if [[ "${MASTER}" == "true" ]]; then
   echo "Launching Redis in Master mode"
-  launchmaster
+  launchmaster $@
   exit 0
 fi
 
 # Check if SENTINEL environment variable is set
 if [[ "${SENTINEL}" == "true" ]]; then
   echo "Launching Redis Sentinel"
-  launchsentinel
+  launchsentinel $@
   echo "Launcsentinel action completed"
   exit 0
 fi
@@ -147,7 +147,7 @@ SLAVE1_IP=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..pod
 SLAVE1_NAME=`kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state} {"\n"} {end}' -l redis-role=slave |grep running|grep $REDIS_CHART_PREFIX|grep -v $HOSTNAME|sort|awk '{print $1}'|head -n1`
 if [[ "$MASTERS" == "" ]] && [[ "$SLAVE1_IP" == "" ]]; then
   echo "No masters or slaves found: \"$MASTERS\" Taking master role..."
-  launchmaster
+  launchmaster $@
   exit 0
 else
   if [[ "$MASTERS" != "" ]]; then
@@ -164,10 +164,10 @@ else
       echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE ${MASTER_NAME} && redis-cli -h % -p 26379 sentinel monitor ${MASTER_NAME} ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
     fi
   fi
-  launchslave
+  launchslave $@
   exit 0
 fi
 
 echo "Launching Redis in Slave mode"
-launchslave
+launchslave $@
 echo "Launchslave action completed"
