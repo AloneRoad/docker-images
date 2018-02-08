@@ -75,7 +75,7 @@ function launchmaster() {
 
   MASTER_IP=$(hostname -i)
   SENTINEL_IPS=$(kubectl get pod -o jsonpath='{range .items[*]}{.metadata.name} {..podIP} {.status.containerStatuses[0].state}{"\n"}{end}' -l redis-role=sentinel|grep running|awk '{print $2}')
-  echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${MASTER_IP} ${MASTER_LB_PORT} ${QUORUM}"
+  echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE ${MASTER_NAME} && redis-cli -h % -p 26379 sentinel monitor ${MASTER_NAME} ${MASTER_IP} ${MASTER_LB_PORT} ${QUORUM}"
 
   updateconf $MASTER_CONF
   redis-server $MASTER_CONF --protected-mode no $@
@@ -102,12 +102,12 @@ function launchsentinel() {
     sleep 10
   done
 
-  echo "sentinel monitor mymaster ${MASTER_LB_HOST} ${MASTER_LB_PORT} ${QUORUM}" > ${SENTINEL_CONF}
-  echo "sentinel down-after-milliseconds mymaster 10000" >> ${SENTINEL_CONF}
-  echo "sentinel failover-timeout mymaster 5000" >> ${SENTINEL_CONF}
-  echo "sentinel parallel-syncs mymaster 10" >> ${SENTINEL_CONF}
+  echo "sentinel monitor ${MASTER_NAME} ${MASTER_LB_HOST} ${MASTER_LB_PORT} ${QUORUM}" > ${SENTINEL_CONF}
+  echo "sentinel down-after-milliseconds ${MASTER_NAME} 10000" >> ${SENTINEL_CONF}
+  echo "sentinel failover-timeout ${MASTER_NAME} 5000" >> ${SENTINEL_CONF}
+  echo "sentinel parallel-syncs ${MASTER_NAME} 10" >> ${SENTINEL_CONF}
   echo "bind 0.0.0.0" >> ${SENTINEL_CONF}
-  echo "sentinel client-reconfig-script mymaster /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
+  echo "sentinel client-reconfig-script ${MASTER_NAME} /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
 
   kubectl label --overwrite pod $HOSTNAME redis-role="sentinel"
 
@@ -182,7 +182,7 @@ else
       echo "promote slave to master"
       redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
       kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
-      echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE mymaster && redis-cli -h % -p 26379 sentinel monitor mymaster ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
+      echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE ${MASTER_NAME} && redis-cli -h % -p 26379 sentinel monitor ${MASTER_NAME} ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
     fi
   fi
   launchslave
