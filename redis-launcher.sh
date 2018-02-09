@@ -73,6 +73,7 @@ function launchsentinel() {
     echo "Current master is $MASTER_IP"
 
     if [[ -z ${MASTER_IP} ]]; then
+      sleep 1
       continue
     fi
 
