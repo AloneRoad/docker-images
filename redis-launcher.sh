@@ -112,9 +112,7 @@ function launchsentinel() {
   echo "sentinel parallel-syncs ${MASTER_NAME} ${PARALLEL_SYNCS}" >> ${SENTINEL_CONF}
   echo "bind 0.0.0.0" >> ${SENTINEL_CONF}
   echo "sentinel client-reconfig-script ${MASTER_NAME} /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
-  if [ -z "$REDIS_PASSWORD" ]; then
-    echo "sentinel auth-pass ${MASTER_NAME} ${REDIS_PASSWORD}" >> ${SENTINEL_CONF}
-  fi
+  echo "sentinel auth-pass ${MASTER_NAME} ${REDIS_PASSWORD}" >> ${SENTINEL_CONF}
 
   kubectl label --overwrite pod $HOSTNAME redis-role="sentinel"
 
