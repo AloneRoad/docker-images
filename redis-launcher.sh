@@ -79,7 +79,7 @@ function launchsentinel() {
       continue
     fi
 
-    timeout -t 3 redis-cli -h ${MASTER_IP} -p ${MASTER_LB_PORT} INFO
+    timeout -t 3 redis-cli -h ${MASTER_IP} -p ${MASTER_LB_PORT} -a "${REDIS_PASSWORD}" INFO
     if [[ "$?" == "0" ]]; then
       break
     fi
@@ -93,8 +93,8 @@ function launchsentinel() {
   echo "sentinel parallel-syncs ${MASTER_NAME} ${PARALLEL_SYNCS}" >> ${SENTINEL_CONF}
   echo "bind 0.0.0.0" >> ${SENTINEL_CONF}
   echo "sentinel client-reconfig-script ${MASTER_NAME} /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
-  if [ -z "$AUTH_PASS" ]; then
-    echo "sentinel auth-pass ${MASTER_NAME} ${AUTH_PASS}" >> ${SENTINEL_CONF}
+  if [ -z "$REDIS_PASSWORD" ]; then
+    echo "sentinel auth-pass ${MASTER_NAME} ${REDIS_PASSWORD}" >> ${SENTINEL_CONF}
   fi
 
   kubectl label --overwrite pod $HOSTNAME redis-role="sentinel"
@@ -114,7 +114,7 @@ function launchslave() {
   i=0
   while true; do
     master=${MASTER_LB_HOST}
-    timeout -t 3 redis-cli -h ${master} -p ${MASTER_LB_PORT} INFO
+    timeout -t 3 redis-cli -h ${master} -p ${MASTER_LB_PORT} -a "${REDIS_PASSWORD}" INFO
     if [[ "$?" == "0" ]]; then
       break
     fi
@@ -166,7 +166,7 @@ else
     if [[ "${#SENTINEL_LIST[@]}" -lt $((QUORUM+1)) ]]; then
       echo "No master found, not enough sentinels, slaves available"
       echo "promote slave to master"
-      redis-cli -h $SLAVE1_IP -p 6379 SLAVEOF NO ONE
+      redis-cli -h $SLAVE1_IP -p 6379 -a "${REDIS_PASSWORD}" SLAVEOF NO ONE
       kubectl label --overwrite pod $SLAVE1_NAME redis-role="master"
       echo "$SENTINEL_IPS" | xargs -n1 -I% sh -c "redis-cli -h % -p 26379 SENTINEL REMOVE ${MASTER_NAME} && redis-cli -h % -p 26379 sentinel monitor ${MASTER_NAME} ${SLAVE1_IP} ${MASTER_LB_PORT} ${QUORUM}"
     fi
