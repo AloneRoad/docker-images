@@ -46,7 +46,9 @@ MASTER_LB_PORT="${!PORTVAR}"
 MASTER_LB_HOST="${!HOSTVAR}"
 QUORUM=${QUORUM:-2}
 MASTER_NAME=${SENTINEL_MASTER_NAME:-mymaster}
-AUTH_PASS=${SENTINEL_AUTH_PASS}
+DOWN_AFTER_MILLISECONDS=${SENTINEL_DOWN_AFTER_MILLISECONDS:-10000}
+FAILOVER_TIMEOUT=${SENTINEL_FAILOVER_TIMEOUT:-5000}
+PARALLEL_SYNCS=${SENTINEL_PARALLEL_SYNCS:-10}
 
 # Launch master when `MASTER` environment variable is set
 function launchmaster() {
@@ -86,9 +88,9 @@ function launchsentinel() {
   done
 
   echo "sentinel monitor ${MASTER_NAME} ${MASTER_LB_HOST} ${MASTER_LB_PORT} ${QUORUM}" > ${SENTINEL_CONF}
-  echo "sentinel down-after-milliseconds ${MASTER_NAME} 10000" >> ${SENTINEL_CONF}
-  echo "sentinel failover-timeout ${MASTER_NAME} 5000" >> ${SENTINEL_CONF}
-  echo "sentinel parallel-syncs ${MASTER_NAME} 10" >> ${SENTINEL_CONF}
+  echo "sentinel down-after-milliseconds ${MASTER_NAME} ${DOWN_AFTER_MILLISECONDS}" >> ${SENTINEL_CONF}
+  echo "sentinel failover-timeout ${MASTER_NAME} ${FAILOVER_TIMEOUT}" >> ${SENTINEL_CONF}
+  echo "sentinel parallel-syncs ${MASTER_NAME} ${PARALLEL_SYNCS}" >> ${SENTINEL_CONF}
   echo "bind 0.0.0.0" >> ${SENTINEL_CONF}
   echo "sentinel client-reconfig-script ${MASTER_NAME} /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
   if [ -z "$AUTH_PASS" ]; then
